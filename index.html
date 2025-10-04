@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Quiz</title>
+    <!-- Tailwind CSS CDN for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* A dark slate-blue background */
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="quiz-container" class="bg-slate-800 p-8 rounded-xl shadow-2xl w-full max-w-2xl text-center border border-slate-700">
+        
+        <h1 class="text-4xl font-bold text-emerald-400 mb-6 drop-shadow-lg">Online Quiz</h1>
+
+        <!-- The "Start Quiz" button to start the game -->
+        <button id="startButton" class="bg-emerald-600 text-white px-10 py-4 rounded-full text-lg font-semibold shadow-md transition transform hover:scale-105 hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500 focus:ring-opacity-50">
+            Start Quiz
+        </button>
+
+        <!-- Quiz content (hidden initially) -->
+        <div id="quizContent" class="hidden text-left">
+            <h2 id="questionText" class="text-2xl font-semibold text-gray-200 mb-6"></h2>
+            
+            <div id="answersContainer" class="grid gap-4 sm:grid-cols-2 mb-6">
+                <!-- Answer buttons will be dynamically added here -->
+            </div>
+
+            <div class="flex justify-between items-center">
+                <!-- Message area for correct/incorrect feedback -->
+                <p id="message" class="font-medium text-lg"></p>
+
+                <!-- Check Answer and Next Question buttons -->
+                <button id="checkButton" class="bg-blue-600 text-white px-6 py-2 rounded-full font-semibold shadow-md transition transform hover:scale-105 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 hidden">
+                    Check Answer
+                </button>
+            </div>
+        </div>
+
+        <!-- Quiz results (hidden initially) -->
+        <div id="resultsContent" class="hidden text-center">
+            <h2 class="text-3xl font-bold text-emerald-400 mb-4">Quiz Finished!</h2>
+            <p class="text-xl text-gray-300 mb-2">You scored <span id="scoreText" class="font-bold text-emerald-400"></span> out of <span id="totalQuestionsText" class="font-bold text-gray-300"></span> questions.</p>
+            <h3 class="text-2xl font-semibold text-emerald-400 mt-4">Well done!</h3>
+        </div>
+
+    </div>
+
+    <script>
+        // Data for the quiz questions. In a real REST API, this data would be fetched from a server.
+        const questions = [
+            {
+                question: "What is the capital of France?",
+                answers: ["Berlin", "Madrid", "Paris", "Rome"],
+                correctAnswer: 2
+            },
+            {
+                question: "Which planet is known as the Red Planet?",
+                answers: ["Earth", "Mars", "Jupiter", "Venus"],
+                correctAnswer: 1
+            },
+            {
+                question: "What is the largest ocean on Earth?",
+                answers: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+                correctAnswer: 3
+            },
+            {
+                question: "What is the chemical symbol for water?",
+                answers: ["H2O", "O2", "CO2", "Nacl"],
+                correctAnswer: 0
+            }
+        ];
+
+        // --- DOM Elements ---
+        const startButton = document.getElementById('startButton');
+        const quizContent = document.getElementById('quizContent');
+        const resultsContent = document.getElementById('resultsContent');
+        const questionText = document.getElementById('questionText');
+        const answersContainer = document.getElementById('answersContainer');
+        const checkButton = document.getElementById('checkButton');
+        const message = document.getElementById('message');
+        const scoreText = document.getElementById('scoreText');
+        const totalQuestionsText = document.getElementById('totalQuestionsText');
+
+        // --- Quiz State Variables ---
+        let shuffledQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let selectedAnswer = null;
+
+        // --- Functions ---
+        
+        /**
+         * Shuffles an array randomly.
+         * @param {Array} array - The array to shuffle.
+         * @returns {Array} The shuffled array.
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        /**
+         * Resets the quiz state to start a new game.
+         */
+        function resetQuizState() {
+            shuffledQuestions = shuffleArray(questions);
+            currentQuestionIndex = 0;
+            score = 0;
+            selectedAnswer = null;
+        }
+
+        /**
+         * Displays the current question and its answer choices.
+         */
+        function showQuestion() {
+            const currentQuestion = shuffledQuestions[currentQuestionIndex];
+            questionText.innerText = currentQuestion.question;
+            answersContainer.innerHTML = ''; // Clear previous answers
+            message.innerText = '';
+            selectedAnswer = null;
+            checkButton.classList.add('hidden');
+            
+            // Re-enable answer buttons for the new question
+            document.querySelectorAll('.answer-button').forEach(btn => btn.disabled = false);
+
+            currentQuestion.answers.forEach((answer, index) => {
+                const button = document.createElement('button');
+                button.innerText = answer;
+                button.classList.add(
+                    'answer-button',
+                    'bg-slate-700', 'hover:bg-slate-600', 'text-gray-300', 'font-medium',
+                    'py-3', 'px-6', 'rounded-lg', 'transition', 'duration-200', 'ease-in-out',
+                    'text-lg', 'shadow-sm', 'hover:shadow-md'
+                );
+                
+                // Use a dataset to store the answer index
+                button.dataset.index = index;
+                answersContainer.appendChild(button);
+            });
+        }
+
+        /**
+         * Handles the selection of an answer by styling the clicked button.
+         * @param {HTMLElement} button - The button element that was clicked.
+         */
+        function selectAnswer(button) {
+            // Remove 'selected' styling from all buttons
+            document.querySelectorAll('.answer-button').forEach(btn => {
+                btn.classList.remove('bg-emerald-600', 'text-white');
+                btn.classList.add('bg-slate-700', 'text-gray-300');
+            });
+            
+            // Add 'selected' styling to the clicked button
+            button.classList.remove('bg-slate-700', 'text-gray-300');
+            button.classList.add('bg-emerald-600', 'text-white');
+            
+            selectedAnswer = parseInt(button.dataset.index);
+            checkButton.classList.remove('hidden');
+            message.innerText = '';
+        }
+
+        /**
+         * Checks the selected answer and provides feedback.
+         */
+        function checkAnswer() {
+            if (selectedAnswer === null) {
+                message.innerText = "Please select an answer.";
+                message.classList.remove('text-green-400', 'text-red-400');
+                message.classList.add('text-yellow-400');
+                return;
+            }
+
+            const currentQuestion = shuffledQuestions[currentQuestionIndex];
+            if (selectedAnswer === currentQuestion.correctAnswer) {
+                score++;
+                message.innerText = "Correct! ✅";
+                message.classList.remove('text-red-400', 'text-yellow-400');
+                message.classList.add('text-green-400');
+            } else {
+                message.innerText = "Incorrect! ❌ The correct answer was: " + currentQuestion.answers[currentQuestion.correctAnswer];
+                message.classList.remove('text-green-400', 'text-yellow-400');
+                message.classList.add('text-red-400');
+            }
+            
+            // Disable all answer buttons after checking
+            document.querySelectorAll('.answer-button').forEach(btn => {
+                btn.disabled = true;
+            });
+            checkButton.innerText = "Next Question";
+        }
+
+        /**
+         * Displays the final quiz results.
+         */
+        function showResults() {
+            quizContent.classList.add('hidden');
+            resultsContent.classList.remove('hidden');
+            scoreText.innerText = score;
+            totalQuestionsText.innerText = shuffledQuestions.length;
+        }
+
+        // --- Event Handlers ---
+        
+        // This function handles both starting the quiz and moving to the next question.
+        const handleStartOrNext = () => {
+            if (checkButton.innerText === "Next Question") {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < shuffledQuestions.length) {
+                    showQuestion();
+                    checkButton.innerText = "Check Answer";
+                } else {
+                    showResults();
+                }
+            } else {
+                checkAnswer();
+            }
+        };
+
+        // Event delegation for answer buttons
+        answersContainer.addEventListener('click', (event) => {
+            if (event.target.classList.contains('answer-button')) {
+                selectAnswer(event.target);
+            }
+        });
+
+        // Event listener for the "Start" and "Check/Next" buttons
+        startButton.addEventListener('click', () => {
+            startButton.classList.add('hidden');
+            resultsContent.classList.add('hidden');
+            quizContent.classList.remove('hidden');
+            resetQuizState();
+            showQuestion();
+        });
+
+        checkButton.addEventListener('click', handleStartOrNext);
+    </script>
+
+</body>
+</html>
